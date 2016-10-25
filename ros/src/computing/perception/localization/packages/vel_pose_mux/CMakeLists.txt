@@ -31,6 +31,8 @@ catkin_package(
 ## Build ##
 ###########
 
+SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -g -Wall ${CMAKE_CXX_FLAGS}")
+
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 # include_directories(include)
@@ -38,6 +40,6 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-add_executable(vel_pose_mux nodes/vel_pose_mux.cpp)
+add_executable(vel_pose_mux nodes/vel_pose_mux_core.cpp nodes/vel_pose_mux_node.cpp)
 target_link_libraries(vel_pose_mux ${catkin_LIBRARIES})
 add_dependencies(vel_pose_mux vehicle_socket_generate_messages_cpp)
