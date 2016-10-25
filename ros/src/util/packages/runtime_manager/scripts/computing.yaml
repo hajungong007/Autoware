@@ -67,6 +67,10 @@ subs :
            vel_mux_select:
              depend : sim_mode
              depend_bool : 'lambda v : v == 0'
+             flags : [ nl ]
+           publish_odom:
+             depend : vel_mux_select
+             depend_bool : 'lambda v : v == 1'
            stat_topic : [ lf ]  
 
   - name : Detection
@@ -1107,7 +1111,15 @@ params :
       v       : False
       cmd_param:
         dash     : ''
-        delim    : ':='        
+        delim    : ':='      
+    - name    : publish_odom
+      desc    : publish odometry from can_info
+      label   : 'Publish Odometry'
+      kind    : checkbox
+      v       : False
+      cmd_param:
+        dash     : ''
+        delim    : ':='      
 
   - name  : waypoint_follower
     topic : /config/waypoint_follower
