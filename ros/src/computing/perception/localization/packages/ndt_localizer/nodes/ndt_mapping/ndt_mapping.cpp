@@ -81,11 +81,11 @@ static pose previous_pose, guess_pose, current_pose, ndt_pose, added_pose, local
 
 static double offset_x, offset_y, offset_z, offset_yaw; // current_pose - previous_pose
 
-static pcl::PointCloud<pcl::PointXYZI> map;
+static pcl::PointCloud<pcl::PointXYZI> map, pcd_map;
 
 static pcl::NormalDistributionsTransform<pcl::PointXYZI, pcl::PointXYZI> ndt;
 // Default values
-static int iter = 30; // Maximum iterations
+static int iter = 1000; // Maximum iterations
 static float ndt_res = 1.0; // Resolution
 static double step_size = 0.1; // Step size
 static double trans_eps = 0.01; // Transformation epsilon
@@ -109,6 +109,8 @@ static Eigen::Matrix4f gnss_transform = Eigen::Matrix4f::Identity();
 
 static double RANGE = 0.0;
 static double SHIFT = 0.0;
+static double SUBMAP_SIZE = 200.0;
+static double _pcd_voxel_size = 0.2;
 
 static double _tf_x, _tf_y, _tf_z, _tf_roll, _tf_pitch, _tf_yaw;
 static Eigen::Matrix4f tf_btol, tf_ltob;
@@ -117,6 +119,12 @@ static bool isMapUpdate = true;
 static bool _use_openmp = false;
 
 static double fitness_score;
+
+static int submap_num = 0;
+static double submap_size = 0.0;
+
+static std::ofstream ofs;
+static std::string csv_filename;
 
 static void param_callback(const runtime_manager::ConfigNdtMapping::ConstPtr& input)
 {
@@ -290,6 +298,10 @@ static void points_callback(const sensor_msgs::PointCloud2::ConstPtr& input)
     ndt_pose.z = t_base_link(2, 3);
     mat_b.getRPY(ndt_pose.roll, ndt_pose.pitch, ndt_pose.yaw, 1);
     
+    ndt_pose.z = 0.0;
+    ndt_pose.roll = 0.0;
+    ndt_pose.pitch = 0.0;
+
     current_pose.x = ndt_pose.x;
     current_pose.y = ndt_pose.y;
     current_pose.z = ndt_pose.z;
@@ -317,23 +329,6 @@ static void points_callback(const sensor_msgs::PointCloud2::ConstPtr& input)
     previous_pose.pitch = current_pose.pitch;
     previous_pose.yaw = current_pose.yaw;
     
-    // Calculate the shift between added_pos and current_pos
-    double shift = sqrt(pow(current_pose.x-added_pose.x, 2.0) + pow(current_pose.y-added_pose.y, 2.0));
-    if(shift >= SHIFT){
-      map += *transformed_scan_ptr;
-      added_pose.x = current_pose.x;
-      added_pose.y = current_pose.y;
-      added_pose.z = current_pose.z;
-      added_pose.roll = current_pose.roll;
-      added_pose.pitch = current_pose.pitch;
-      added_pose.yaw = current_pose.yaw;
-      isMapUpdate = true;
-    }
-    
-    sensor_msgs::PointCloud2::Ptr map_msg_ptr(new sensor_msgs::PointCloud2);
-    pcl::toROSMsg(*map_ptr, *map_msg_ptr);
-    ndt_map_pub.publish(*map_msg_ptr);
-    
     q.setRPY(current_pose.roll, current_pose.pitch, current_pose.yaw);
     current_pose_msg.header.frame_id = "map";
     current_pose_msg.header.stamp = scan_time;
@@ -344,8 +339,77 @@ static void points_callback(const sensor_msgs::PointCloud2::ConstPtr& input)
     current_pose_msg.pose.orientation.y = q.y();
     current_pose_msg.pose.orientation.z = q.z();
     current_pose_msg.pose.orientation.w = q.w();
-    
     current_pose_pub.publish(current_pose_msg);
+
+    // Calculate the shift between added_pos and current_pos
+    double shift = sqrt(pow(current_pose.x-added_pose.x, 2.0) + pow(current_pose.y-added_pose.y, 2.0));
+
+    if(shift >= SHIFT){
+      submap_size += shift;
+      std::cout << "submap_size: " << submap_size << std::endl;
+      map += *transformed_scan_ptr;
+      pcd_map += *transformed_scan_ptr;
+      added_pose.x = current_pose.x;
+      added_pose.y = current_pose.y;
+      added_pose.z = current_pose.z;
+      added_pose.roll = current_pose.roll;
+      added_pose.pitch = current_pose.pitch;
+      added_pose.yaw = current_pose.yaw;
+      isMapUpdate = true;
+    }
+
+    sensor_msgs::PointCloud2::Ptr map_msg_ptr(new sensor_msgs::PointCloud2);
+    pcl::toROSMsg(*scan_ptr, *map_msg_ptr);
+    ndt_map_pub.publish(*map_msg_ptr);
+
+    std::cout << "map: " << map.size() << " points." << std::endl;
+    std::cout << "pcd_map: " << pcd_map.size() << " points." << std::endl;
+
+    if(submap_size >= SUBMAP_SIZE){
+    	std::string s1 = "original";
+    	std::string s2 = std::to_string(_pcd_voxel_size);
+    	std::string s3 = "_submap_";
+    	std::string s4 = std::to_string(submap_num);
+    	std::string s5 = ".pcd";
+    	std::string original_pcd_filename = s1 + s3 + s4 + s5;
+    	std::string filtered_pcd_filename = s2 + s3 + s4 + s5;
+
+    	if(pcd_map.size() != 0)
+    	{
+    		if(pcl::io::savePCDFileBinary(original_pcd_filename, pcd_map) == -1){
+    			std::cout << "Failed saving " << original_pcd_filename << "." << std::endl;
+    		}
+    		std::cout << "Saved " << original_pcd_filename << " (" << pcd_map.size() << " points)" << std::endl;
+
+    		pcl::VoxelGrid<pcl::PointXYZI> voxel_grid_filter;
+    		pcl::PointCloud<pcl::PointXYZI>::Ptr pcd_map_ptr(new pcl::PointCloud<pcl::PointXYZI>(pcd_map));
+    		pcl::PointCloud<pcl::PointXYZI>::Ptr filtered_pcd_map_ptr(new pcl::PointCloud<pcl::PointXYZI>());
+    		voxel_grid_filter.setLeafSize(_pcd_voxel_size, _pcd_voxel_size, _pcd_voxel_size);
+    		voxel_grid_filter.setInputCloud(pcd_map_ptr);
+    		voxel_grid_filter.filter(*filtered_pcd_map_ptr);
+
+    		if(pcl::io::savePCDFileBinary(filtered_pcd_filename, *filtered_pcd_map_ptr) == -1){
+    			std::cout << "Failed saving " << filtered_pcd_filename << "." << std::endl;
+    		}
+    		std::cout << "Saved " << filtered_pcd_filename << " (" << filtered_pcd_map_ptr->size() << " points)" << std::endl;
+
+    		sensor_msgs::PointCloud2::Ptr map_msg_ptr(new sensor_msgs::PointCloud2);
+    		pcl::toROSMsg(*filtered_pcd_map_ptr, *map_msg_ptr);
+    		ndt_map_pub.publish(*map_msg_ptr);
+
+    		if(!ofs){
+    			std::cerr << "Could not open " << csv_filename << "." << std::endl;
+    			exit(1);
+    		}
+    		ofs << submap_num + 1 << "," << current_pose.x << "," << current_pose.y << "," << current_pose.z << ","
+    			<< current_pose.roll << "," << current_pose.pitch << "," << current_pose.yaw << std::endl;
+
+    		map = pcd_map;
+    		pcd_map.clear();
+    		submap_size = 0.0;
+    	}
+    	submap_num++;
+    }
     
     std::cout << "-----------------------------------------------------------------" << std::endl;
     std::cout << "Sequence number: " << input->header.seq << std::endl;
@@ -407,16 +471,29 @@ int main(int argc, char **argv)
     offset_z = 0.0;
     offset_yaw = 0.0;
 
+    map.clear();
+
     ros::init(argc, argv, "ndt_mapping");
 
     ros::NodeHandle nh;
     ros::NodeHandle private_nh("~");
+
+    char buffer[80];
+    std::time_t now = std::time(NULL);
+    std::tm *pnow = std::localtime(&now);
+    std::strftime(buffer,80,"%Y%m%d_%H%M%S",pnow);
+    csv_filename = "ndt_mapping_" + std::string(buffer) + ".csv";
+    ofs.open(csv_filename.c_str(), std::ios::app);
 
     // setting parameters
     private_nh.getParam("range", RANGE);
     std::cout << "RANGE: " << RANGE << std::endl;
     private_nh.getParam("shift", SHIFT);
     std::cout << "SHIFT: " << SHIFT << std::endl;
+    private_nh.getParam("submap_size", SUBMAP_SIZE);
+    std::cout << "submap_size: " << SUBMAP_SIZE << std::endl;
+    private_nh.getParam("pcd_voxel_size", _pcd_voxel_size);
+    std::cout << "pcd_voxel_size: " << _pcd_voxel_size << std::endl;
     private_nh.getParam("use_openmp", _use_openmp);
     std::cout << "use_openmp: " << _use_openmp << std::endl;
 
