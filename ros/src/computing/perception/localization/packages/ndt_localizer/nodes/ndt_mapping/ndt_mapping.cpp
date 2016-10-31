@@ -97,6 +97,7 @@ static ros::Time callback_start, callback_end, t1_start, t1_end, t2_start, t2_en
 static ros::Duration d_callback, d1, d2, d3, d4, d5;
 
 static ros::Publisher ndt_map_pub;
+
 static ros::Publisher current_pose_pub;
 static geometry_msgs::PoseStamped current_pose_msg;
 
@@ -183,7 +184,7 @@ static void output_callback(const runtime_manager::ConfigNdtMappingOutput::Const
 static void points_callback(const sensor_msgs::PointCloud2::ConstPtr& input)
 {
     double r;
-    pcl::PointXYZI p; 
+    pcl::PointXYZI p;
     pcl::PointCloud<pcl::PointXYZI> tmp, scan;
     pcl::PointCloud<pcl::PointXYZI>::Ptr filtered_scan_ptr (new pcl::PointCloud<pcl::PointXYZI>());
     pcl::PointCloud<pcl::PointXYZI>::Ptr transformed_scan_ptr (new pcl::PointCloud<pcl::PointXYZI>());
@@ -297,10 +298,6 @@ static void points_callback(const sensor_msgs::PointCloud2::ConstPtr& input)
     ndt_pose.y = t_base_link(1, 3);
     ndt_pose.z = t_base_link(2, 3);
     mat_b.getRPY(ndt_pose.roll, ndt_pose.pitch, ndt_pose.yaw, 1);
-    
-    ndt_pose.z = 0.0;
-    ndt_pose.roll = 0.0;
-    ndt_pose.pitch = 0.0;
 
     current_pose.x = ndt_pose.x;
     current_pose.y = ndt_pose.y;
@@ -359,7 +356,8 @@ static void points_callback(const sensor_msgs::PointCloud2::ConstPtr& input)
     }
 
     sensor_msgs::PointCloud2::Ptr map_msg_ptr(new sensor_msgs::PointCloud2);
-    pcl::toROSMsg(*scan_ptr, *map_msg_ptr);
+    pcl::toROSMsg(pcd_map, *map_msg_ptr);
+    map_msg_ptr->header.frame_id = "map";
     ndt_map_pub.publish(*map_msg_ptr);
 
     std::cout << "map: " << map.size() << " points." << std::endl;
