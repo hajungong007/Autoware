@@ -130,12 +130,15 @@ subs :
         cmd  : roslaunch cv_tracker ssd.launch
         param: ssd
         gui   :
-          flags : [ need_camera_info ]
-          sel_cam_dialog_only : [ camera_id ]
-          sel_cam_dialog_allow: [ camera_id ]
+          links : [ cam ]
+          links_info :
+            cam : { title : "select camera" }
           camera_id :
             border : 16
             flags : [ all ]
+          camera_id_cmd_param :
+            func : pdic.get('camera_id') if not self.button_synchronization.GetValue() else None
+        include_guis : [ gui_cam_id ]
 
       - name : range_fusion
         desc : range_fusion desc sample
