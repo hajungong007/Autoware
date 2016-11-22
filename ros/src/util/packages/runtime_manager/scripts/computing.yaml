@@ -46,13 +46,13 @@ subs :
             user_category : ''
           layer:
             flags : [ nl ]
-          sync :
-            func : self.button_synchronization.GetValue()
+        include_guis : [ gui_sync ]
     - name : icp_localizer
       subs :
       - name : icp_matching
         cmd  : roslaunch icp_localizer icp_matching.launch
         param: icp
+        include_guis : [ gui_sync ]
     - name : vel_pose_mux
       desc : vel_pose_mux desc sample
       subs :
@@ -151,8 +151,7 @@ subs :
           pedestrian :
             border : 16
             flags  : [ left ]
-          sync :
-            func : self.button_synchronization.GetValue()
+        include_guis : [ gui_sync ]
 
       - name : klt_track
         desc : klt_track desc sample
@@ -206,9 +205,7 @@ subs :
         desc : euclidean_cluster desc sample
         cmd  : roslaunch lidar_tracker euclidean_clustering.launch
         param: euclidean_cluster
-        gui  :
-          sync :
-            func : self.button_synchronization.GetValue()
+        include_guis : [ gui_sync ]
       - name : svm_lidar_detect
         desc : svm_lidar_detect desc sample
         cmd  : roslaunch lidar_tracker svm_lidar_detect.launch
@@ -235,8 +232,7 @@ subs :
           pedestrian :
             border : 16
             flags  : [ left ]
-          sync :
-            func : self.button_synchronization.GetValue()
+        include_guis : [ gui_sync ]
 
     - name : road_wizard
       desc : road_wizard desc sample
@@ -574,6 +570,16 @@ params :
         delim        : ':='
         only_enable  : True
 
+  - name  : sync
+    vars  :
+    - name      : sync
+      kind      : hide
+      v         : False
+      cmd_param :
+        dash        : ''
+        delim       : ':='
+        only_enable : True
+
   - name  : dpm_ocv
     topics:
     - topic : /config/car_dpm
@@ -627,15 +633,7 @@ params :
         delim    : ':='
 
     - include_param_vars : cam_id
-
-    - name      : sync
-      kind      : hide
-      v         : False
-      cmd_param :
-        dash        : ''
-        delim       : ':='
-        only_enable : True
-
+    - include_param_vars : sync
     - include_param_vars : dpm_car
     - include_param_vars : dpm_pedestrian
 
@@ -724,15 +722,7 @@ params :
         delim    : ':='
 
     - include_param_vars : cam_id
-
-    - name      : sync
-      kind      : hide
-      v         : False
-      cmd_param :
-        dash        : ''
-        delim       : ':='
-        only_enable : True
-
+    - include_param_vars : sync
     - include_param_vars : dpm_car
     - include_param_vars : dpm_pedestrian
 
@@ -930,14 +920,8 @@ params :
       cmd_param :
         dash        : ''
         delim       : ':='
-    - name      : sync
-      kind      : hide
-      v         : False
-      cmd_param :
-        dash        : ''
-        delim       : ':='
-        only_enable : True
 
+    - include_param_vars : sync
 
   - name  : ndt
     topic : /config/ndt
@@ -1050,13 +1034,9 @@ params :
 #      min   : -2.0
 #      max   : 2.0
 #      v     : 0
-    - name      : sync
-      kind      : hide
-      v         : False
-      cmd_param :
-        dash        : ''
-        delim       : ':='
-        only_enable : True
+
+    - include_param_vars : sync
+
     - name      : use_openmp
       desc      : use_openmp desc sample
       label     : Use OpenMP
@@ -1139,13 +1119,8 @@ params :
       max   : 10
       step  : 0.1
       v     : 1.0
-    - name      : sync
-      kind      : hide
-      v         : False
-      cmd_param :
-        dash        : ''
-        delim       : ':='
-        only_enable : True
+
+    - include_param_vars : sync
 
   - name  : vel_pose_mux
     vars  :
@@ -1493,14 +1468,7 @@ params :
         delim    : ':='
 
     - include_param_vars : cam_id
-
-    - name      : sync
-      kind      : hide
-      v         : False
-      cmd_param :
-        dash        : ''
-        delim       : ':='
-        only_enable : True
+    - include_param_vars : sync
 
   - name  : kf_track
     topics:
@@ -1527,14 +1495,7 @@ params :
         delim    : ':='
 
     - include_param_vars : cam_id
-
-    - name      : sync
-      kind      : hide
-      v         : False
-      cmd_param :
-        dash        : ''
-        delim       : ':='
-        only_enable : True
+    - include_param_vars : sync
 
     - include_param_vars : kf
       name_prefix : car_
@@ -1627,14 +1588,7 @@ params :
         delim    : ':='
 
     - include_param_vars : cam_id
-
-    - name      : sync
-      kind      : hide
-      v         : False
-      cmd_param :
-        dash        : ''
-        delim       : ':='
-        only_enable : True
+    - include_param_vars : sync
 
   - name : obj_fusion
     vars :
@@ -1654,13 +1608,8 @@ params :
       cmd_param:
         dash     : ''
         delim    : ':='
-    - name      : sync
-      kind      : hide
-      v         : False
-      cmd_param :
-        dash        : ''
-        delim       : ':='
-        only_enable : True
+
+    - include_param_vars : sync
 
   - name : feat_proj
     topic: /config/adjust_xy
@@ -1911,13 +1860,8 @@ params :
       cmd_param:
         dash     : ''
         delim    : ':='
-    - name      : sync
-      kind      : hide
-      v         : False
-      cmd_param :
-        dash        : ''
-        delim       : ':='
-        only_enable : True
+
+    - include_param_vars : sync
 
     - include_param_vars : fusion
       name_prefix : car_
