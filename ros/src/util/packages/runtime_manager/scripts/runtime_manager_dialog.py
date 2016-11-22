@@ -1881,7 +1881,7 @@ class MyFrame(rtmgr.MyFrame):
 				gdic = self.gdic_get_1st(items)
 				def_link = dic_getset(gdic, 'def_link', 'app')
 				prm = self.get_param(items.get('param'))
-				if 'param' in items:
+				if prm:
 					for link in dic_getset(gdic, 'links', [ def_link ]):
 						if next( (var for var in prm.get('vars', []) if var.get('link', def_link) == link), None):
 							self.new_link(item, name, pdic, gdic, pnl, link, items.get('param'), add_objs)
@@ -1889,7 +1889,7 @@ class MyFrame(rtmgr.MyFrame):
 					self.add_cfg_info(item, item, name, None, gdic, None)
 
 				self.setup_adjust(pdic, self.sys_gdic, self.get_param('sys'))
-				if 'param' in items:
+				if prm:
 					self.setup_adjust(pdic, gdic, prm)
 
 				szr = sizer_wrap(add_objs, wx.HORIZONTAL, parent=pnl)
